@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 
 import getImages from 'api/api';
 
@@ -8,78 +8,63 @@ import LoadMoreButton from './LoadMoreButton/LoadMoreButton';
 import Loader from './Loader/Loader';
 import Modal from './Modal/Modal';
 
-class App extends Component {
-  state = {
-    query: '',
-    page: 1,
-    images: [],
-    loadMore: false,
-    loader: false,
-    modalImage: {},
-    showModal: false,
-  };
+const App = () => {
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [images, setImages] = useState([]);
+  const [loadMoreBtn, setLoadMoreBtn] = useState(false);
+  const [loader, setLoader] = useState(false);
+  const [modalImage, setModalImage] = useState({});
+  const [showModal, setShowModal] = useState(false);
 
-  search = query => {
-    this.setState({
-      query: query,
-      page: 1,
-      images: [],
-    });
-  };
-
-  loadMore = () => {
-    this.setState(prevState => {
-      return {
-        page: prevState.page + 1,
-      };
-    });
-  };
-
-  openModal = image => {
-    this.setState({
-      modalImage: image,
-      showModal: true,
-    });
-  };
-
-  closeModal = () => {
-    this.setState({
-      showModal: false,
-    });
-  };
-
-  componentDidUpdate(_, prevState) {
-    const { page, query } = this.state;
-    if (page !== prevState.page || query !== prevState.query) {
-      this.setState({ loader: true });
-      this.getData();
+  const search = searchParameter => {
+    if (searchParameter !== query || page !== 1) {
+      setImages([]);
     }
-  }
+    setQuery(searchParameter);
+    setPage(1);
+  };
 
-  async getData() {
-    const { page, query } = this.state;
-    const data = await getImages(query, page);
-    this.setState(prevState => {
-      return {
-        images: [...prevState.images, ...data.hits],
-        loadMore: page < Math.ceil(data.totalHits / 12),
-        loader: false,
-      };
+  const loadMore = () => {
+    setPage(prevPage => {
+      return prevPage + 1;
     });
-  }
+  };
 
-  render() {
-    const { images, loadMore, loader, showModal, modalImage } = this.state;
-    return (
-      <div className="App">
-        <Searchbar onSubmit={this.search} />
-        <ImageGallery images={images} openModal={this.openModal} />
-        {loadMore && <LoadMoreButton onClick={this.loadMore} />}
-        {loader && <Loader />}
-        {showModal && <Modal image={modalImage} closeModal={this.closeModal} />}
-      </div>
-    );
-  }
-}
+  const openModal = image => {
+    setModalImage(image);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+  };
+
+  useEffect(() => {
+    if (!query) {
+      return;
+    }
+    async function getData() {
+      const data = await getImages(query, page);
+      setImages(prevImages => {
+        return [...prevImages, ...data.hits];
+      });
+      setLoadMoreBtn(page < Math.ceil(data.totalHits / 12));
+      setLoader(false);
+    }
+    setLoader(true);
+    getData();
+  }, [page, query]);
+
+  return (
+    <div className="App">
+      <Searchbar onSubmit={search} />
+      <ImageGallery images={images} openModal={openModal} />
+      {loadMoreBtn && <LoadMoreButton onClick={loadMore} />}
+      {loader && <Loader />}
+      {showModal && <Modal image={modalImage} closeModal={closeModal} />}
+    </div>
+  );
+};
 
 export { App };
